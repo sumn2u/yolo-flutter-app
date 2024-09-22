@@ -1,0 +1,14 @@
+description: Ultralytics YOLOv8n model trained on tomato dataset.
+author: Suman Kunwar
+license: MIT
+date: "2024-09-21T10:16:15.604065"
+version: 8.0.1
+stride: 32
+task: detect
+batch: 1
+imgsz:
+  - 720
+  - 720
+names:
+  0: unripe
+  1: ripe

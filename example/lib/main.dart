@@ -1,5 +1,4 @@
 import 'dart:io' as io;
-
 import 'package:flutter/material.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
@@ -26,94 +25,65 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       home: Scaffold(
+        appBar: AppBar(title: const Text('YOLO Object Detection')),
         body: FutureBuilder<bool>(
           future: _checkPermissions(),
           builder: (context, snapshot) {
             final allPermissionsGranted = snapshot.data ?? false;
 
-            return !allPermissionsGranted
-                ? Container()
-                : FutureBuilder<ObjectDetector>(
-                    future: _initObjectDetectorWithLocalModel(),
-                    builder: (context, snapshot) {
-                      final predictor = snapshot.data;
+            // Show a blank container if permissions are not granted
+            if (!allPermissionsGranted) {
+              return Center(child: const Text('Please grant camera and storage permissions.'));
+            }
 
-                      return predictor == null
-                          ? Container()
-                          : Stack(
-                              children: [
-                                UltralyticsYoloCameraPreview(
-                                  controller: controller,
-                                  predictor: predictor,
-                                  onCameraCreated: () {
-                                    predictor.loadModel(useGpu: true);
-                                  },
-                                ),
-                                StreamBuilder<double?>(
-                                  stream: predictor.inferenceTime,
-                                  builder: (context, snapshot) {
-                                    final inferenceTime = snapshot.data;
+            return FutureBuilder<ObjectDetector>(
+              future: _initObjectDetectorWithLocalModel(),
+              builder: (context, snapshot) {
+                final predictor = snapshot.data;
 
-                                    return StreamBuilder<double?>(
-                                      stream: predictor.fpsRate,
-                                      builder: (context, snapshot) {
-                                        final fpsRate = snapshot.data;
+                // Display a loading indicator while initializing the model
+                if (predictor == null) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-                                        return Times(
-                                          inferenceTime: inferenceTime,
-                                          fpsRate: fpsRate,
-                                        );
-                                      },
-                                    );
-                                  },
-                                ),
-                              ],
+                // Main content with camera preview and performance metrics
+                return Stack(
+                  children: [
+                    UltralyticsYoloCameraPreview(
+                      controller: controller,
+                      predictor: predictor,
+                      onCameraCreated: () {
+                        predictor.loadModel(useGpu: false);
+                      },
+                    ),
+                    StreamBuilder<double?>(
+                      stream: predictor.inferenceTime,
+                      builder: (context, snapshot) {
+                        final inferenceTime = snapshot.data;
+
+                        return StreamBuilder<double?>(
+                          stream: predictor.fpsRate,
+                          builder: (context, snapshot) {
+                            final fpsRate = snapshot.data;
+
+                            return Times(
+                              inferenceTime: inferenceTime,
+                              fpsRate: fpsRate,
                             );
-                    },
-                  );
-            // : FutureBuilder<ObjectClassifier>(
-            //     future: _initObjectClassifierWithLocalModel(),
-            //     builder: (context, snapshot) {
-            //       final predictor = snapshot.data;
-
-            //       return predictor == null
-            //           ? Container()
-            //           : Stack(
-            //               children: [
-            //                 UltralyticsYoloCameraPreview(
-            //                   controller: controller,
-            //                   predictor: predictor,
-            //                   onCameraCreated: () {
-            //                     predictor.loadModel();
-            //                   },
-            //                 ),
-            //                 StreamBuilder<double?>(
-            //                   stream: predictor.inferenceTime,
-            //                   builder: (context, snapshot) {
-            //                     final inferenceTime = snapshot.data;
-
-            //                     return StreamBuilder<double?>(
-            //                       stream: predictor.fpsRate,
-            //                       builder: (context, snapshot) {
-            //                         final fpsRate = snapshot.data;
-
-            //                         return Times(
-            //                           inferenceTime: inferenceTime,
-            //                           fpsRate: fpsRate,
-            //                         );
-            //                       },
-            //                     );
-            //                   },
-            //                 ),
-            //               ],
-            //             );
-            //     },
-            //   );
+                          },
+                        );
+                      },
+                    ),
+                  ],
+                );
+              },
+            );
           },
         ),
         floatingActionButton: FloatingActionButton(
-          child: const Icon(Icons.abc),
+          child: const Icon(Icons.camera),
           onPressed: () {
+            // Toggle camera lens direction
             controller.toggleLensDirection();
           },
         ),
@@ -122,15 +92,10 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<ObjectDetector> _initObjectDetectorWithLocalModel() async {
-    // final modelPath = await _copy('assets/yolov8n.mlmodel');
-    // final model = LocalYoloModel(
-    //   id: '',
-    //   task: Task.detect,
-    //   format: Format.coreml,
-    //   modelPath: modelPath,
-    // );
-    final modelPath = await _copy('assets/yolov8n_int8.tflite');
-    final metadataPath = await _copy('assets/metadata.yaml');
+    final modelPath = await _copy('assets/yolo_v8_tomato.tflite');
+    final metadataPath = await _copy('assets/metadata_tomato.yaml');
+
+    // Initialize the YOLO model for object detection
     final model = LocalYoloModel(
       id: '',
       task: Task.detect,
@@ -142,33 +107,12 @@ class _MyAppState extends State<MyApp> {
     return ObjectDetector(model: model);
   }
 
-  Future<ImageClassifier> _initImageClassifierWithLocalModel() async {
-    final modelPath = await _copy('assets/yolov8n-cls.mlmodel');
-    final model = LocalYoloModel(
-      id: '',
-      task: Task.classify,
-      format: Format.coreml,
-      modelPath: modelPath,
-    );
-
-    // final modelPath = await _copy('assets/yolov8n-cls.bin');
-    // final paramPath = await _copy('assets/yolov8n-cls.param');
-    // final metadataPath = await _copy('assets/metadata-cls.yaml');
-    // final model = LocalYoloModel(
-    //   id: '',
-    //   task: Task.classify,
-    //   modelPath: modelPath,
-    //   paramPath: paramPath,
-    //   metadataPath: metadataPath,
-    // );
-
-    return ImageClassifier(model: model);
-  }
-
   Future<String> _copy(String assetPath) async {
     final path = '${(await getApplicationSupportDirectory()).path}/$assetPath';
     await io.Directory(dirname(path)).create(recursive: true);
     final file = io.File(path);
+
+    // Copy the asset to the local file system if it doesn't exist
     if (!await file.exists()) {
       final byteData = await rootBundle.load(assetPath);
       await file.writeAsBytes(byteData.buffer
@@ -180,24 +124,16 @@ class _MyAppState extends State<MyApp> {
   Future<bool> _checkPermissions() async {
     List<Permission> permissions = [];
 
-    var cameraStatus = await Permission.camera.status;
-    if (!cameraStatus.isGranted) permissions.add(Permission.camera);
-
-    var storageStatus = await Permission.storage.status;
-    if (!storageStatus.isGranted) permissions.add(Permission.storage);
-
-    if (permissions.isEmpty) {
-      return true;
-    } else {
-      try {
-        Map<Permission, PermissionStatus> statuses =
-            await permissions.request();
-        return statuses[Permission.camera] == PermissionStatus.granted &&
-            statuses[Permission.storage] == PermissionStatus.granted;
-      } on Exception catch (_) {
-        return false;
-      }
+    // Check camera and storage permissions
+    if (await Permission.camera.request().isDenied) {
+      permissions.add(Permission.camera);
     }
+    if (await Permission.storage.request().isDenied) {
+      permissions.add(Permission.storage);
+    }
+
+    // If permissions are granted, return true
+    return permissions.isEmpty;
   }
 }
 
@@ -217,16 +153,17 @@ class Times extends StatelessWidget {
       child: Align(
         alignment: Alignment.bottomCenter,
         child: Container(
-            margin: const EdgeInsets.all(20),
-            padding: const EdgeInsets.all(20),
-            decoration: const BoxDecoration(
-              borderRadius: BorderRadius.all(Radius.circular(10)),
-              color: Colors.black54,
-            ),
-            child: Text(
-              '${(inferenceTime ?? 0).toStringAsFixed(1)} ms  -  ${(fpsRate ?? 0).toStringAsFixed(1)} FPS',
-              style: const TextStyle(color: Colors.white70),
-            )),
+          margin: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(20),
+          decoration: const BoxDecoration(
+            borderRadius: BorderRadius.all(Radius.circular(10)),
+            color: Colors.black54,
+          ),
+          child: Text(
+            '${(inferenceTime ?? 0).toStringAsFixed(1)} ms  -  ${(fpsRate ?? 0).toStringAsFixed(1)} FPS',
+            style: const TextStyle(color: Colors.white70),
+          ),
+        ),
       ),
     );
   }
