@@ -31,7 +31,6 @@ class _MyAppState extends State<MyApp> {
           builder: (context, snapshot) {
             final allPermissionsGranted = snapshot.data ?? false;
 
-            // Show a blank container if permissions are not granted
             if (!allPermissionsGranted) {
               return Center(child: const Text('Please grant camera and storage permissions.'));
             }
@@ -41,12 +40,10 @@ class _MyAppState extends State<MyApp> {
               builder: (context, snapshot) {
                 final predictor = snapshot.data;
 
-                // Display a loading indicator while initializing the model
                 if (predictor == null) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                // Main content with camera preview and performance metrics
                 return Stack(
                   children: [
                     UltralyticsYoloCameraPreview(
@@ -83,7 +80,6 @@ class _MyAppState extends State<MyApp> {
         floatingActionButton: FloatingActionButton(
           child: const Icon(Icons.camera),
           onPressed: () {
-            // Toggle camera lens direction
             controller.toggleLensDirection();
           },
         ),
@@ -92,14 +88,25 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<ObjectDetector> _initObjectDetectorWithLocalModel() async {
-    final modelPath = await _copy('assets/yolo_v8_tomato.tflite');
-    final metadataPath = await _copy('assets/metadata_tomato.yaml');
+    // Detect the platform and load the correct model file format
+    final String modelPath;
+    final String metadataPath;
+
+    if (io.Platform.isAndroid) {
+      modelPath = await _copy('assets/yolo_v8_tomato_int8.tflite');
+      metadataPath = await _copy('assets/metadata_tomato.yaml');
+    } else if (io.Platform.isIOS) {
+      modelPath = await _copy('assets/yolo_v8_tomato.mlmodel');
+      metadataPath = await _copy('assets/metadata_tomato.yaml');
+    } else {
+      throw UnsupportedError('This platform is not supported.');
+    }
 
     // Initialize the YOLO model for object detection
     final model = LocalYoloModel(
       id: '',
       task: Task.detect,
-      format: Format.tflite,
+      format: io.Platform.isIOS ? Format.coreml : Format.tflite,
       modelPath: modelPath,
       metadataPath: metadataPath,
     );
@@ -112,7 +119,6 @@ class _MyAppState extends State<MyApp> {
     await io.Directory(dirname(path)).create(recursive: true);
     final file = io.File(path);
 
-    // Copy the asset to the local file system if it doesn't exist
     if (!await file.exists()) {
       final byteData = await rootBundle.load(assetPath);
       await file.writeAsBytes(byteData.buffer
@@ -124,7 +130,6 @@ class _MyAppState extends State<MyApp> {
   Future<bool> _checkPermissions() async {
     List<Permission> permissions = [];
 
-    // Check camera and storage permissions
     if (await Permission.camera.request().isDenied) {
       permissions.add(Permission.camera);
     }
@@ -132,7 +137,6 @@ class _MyAppState extends State<MyApp> {
       permissions.add(Permission.storage);
     }
 
-    // If permissions are granted, return true
     return permissions.isEmpty;
   }
 }
