@@ -17,7 +17,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
+  image_picker: 1.1.2
   ultralytics_yolo:
     path: ../
   path: ^1.8.2
@@ -50,7 +50,7 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
-    - assets/metadata_tomato.yaml
+    - assets/metadata_tomato_cls.yaml
     - assets/yolo_v8_tomato_int8.tflite
     - assets/yolo_v8_tomato.mlmodel
   #   - images/a_dot_ham.jpeg
