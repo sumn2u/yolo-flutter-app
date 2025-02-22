@@ -156,6 +156,13 @@ class PlatformChannelUltralyticsYolo implements UltralyticsYoloPlatform {
       objects.add(DetectedObject.fromJson(json));
     });
 
+    // Uncomment it while running inference in image detection
+    // result?.forEach((json) {
+    //   json = (json as Map?)?.cast<String, dynamic>();
+    //   if (json == null) return;
+    //   objects.add(DetectedObject.fromJson(json as Map));
+    // });
+
     return objects;
   }
 }
